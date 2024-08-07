@@ -1,0 +1,10 @@
+p{
+    color: #FF0000;
+    width: 800px;
+    border: 1px solid black;
+}
+ 
+h1{
+    font-size: 80px;
+    text-align: center;
+}
