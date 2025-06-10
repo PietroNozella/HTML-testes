@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente de IA - Consulta de Faturas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.bot {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin: 0 10px;
+        }
+
+        .bot .message-avatar {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .user .message-avatar {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #374151;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .bot .message-content {
+            background: white;
+            color: #374151;
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .user .message-content {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .invoice-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .invoice-card h3 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .invoice-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-pago { background: #10b981; }
+        .status-em_aberto { background: #ef4444; }
+        .status-pendente { background: #f59e0b; }
+        .status-cancelado { background: #6b7280; }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input input:focus {
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .send-button {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            font-style: italic;
+            color: #6b7280;
+        }
+
+        .typing-dots {
+            display: inline-block;
+        }
+
+        .typing-dots span {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #6b7280;
+            margin: 0 1px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        .sample-phones {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+        }
+
+        .sample-phones h4 {
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .phone-sample {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            padding: 2px 0;
+        }
+
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="status-indicator"></div>
+            <h1>🤖 Agente de IA</h1>
+            <p>Consulta de Faturas Inteligente</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <!-- Mensagens serão inseridas aqui -->
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            🤖 Agente está digitando
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="Digite sua mensagem..." maxlength="500">
+                <button class="send-button" id="sendButton" onclick="sendMessage()">
+                    ➤
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Base de dados estática (simula API externa)
+        const FATURAS_DB = {
+            "11999999999": {
+                "numero_telefone": "11999999999",
+                "status": "em_aberto",
+                "descricao": "Fatura vencida há 5 dias - Valor: R$ 89,90"
+            },
+            "11888888888": {
+                "numero_telefone": "11888888888", 
+                "status": "pago",
+                "descricao": "Fatura quitada em 15/05/2025 - Valor: R$ 129,90"
+            },
+            "11777777777": {
+                "numero_telefone": "11777777777",
+                "status": "pendente",
+                "descricao": "Fatura processando pagamento - Valor: R$ 79,90"
+            },
+            "11666666666": {
+                "numero_telefone": "11666666666",
+                "status": "cancelado",
+                "descricao": "Serviço cancelado - Última fatura: R$ 99,90"
+            },
+            "21987654321": {
+                "numero_telefone": "21987654321",
+                "status": "em_aberto",
+                "descricao": "Fatura atual - Vencimento: 20/06/2025 - Valor: R$ 159,90"
+            }
+        };
+
+        // Estado da aplicação
+        let conversationState = {
+            sessionId: 'web_session_' + Date.now(),
+            step: 'inicio'
+        };
+
+        // Elementos DOM
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            addBotMessage(getWelcomeMessage());
+            messageInput.focus();
+        });
+
+        // Event listeners
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        messageInput.addEventListener('input', function() {
+            sendButton.disabled = this.value.trim() === '';
+        });
+
+        function getWelcomeMessage() {
+            return `Olá! 👋 Sou seu assistente virtual para consulta de faturas.
+
+Para consultar sua fatura, preciso do seu número de telefone. Pode me informar?
+
+<div class="sample-phones">
+    <h4>📱 Números para teste:</h4>
+    <div class="phone-sample">
+        <span>11 99999-9999</span>
+        <span class="status-badge status-em_aberto">Em Aberto</span>
+    </div>
+    <div class="phone-sample">
+        <span>11 88888-8888</span>
+        <span class="status-badge status-pago">Pago</span>
+    </div>
+    <div class="phone-sample">
+        <span>11 77777-7777</span>
+        <span class="status-badge status-pendente">Pendente</span>
+    </div>
+    <div class="phone-sample">
+        <span>21 98765-4321</span>
+        <span class="status-badge status-em_aberto">Em Aberto</span>
+    </div>
+</div>`;
+        }
+
+        function extractPhone(text) {
+            // Remove tudo que não é número
+            const numbers = text.replace(/[^\d]/g, '');
+            
+            // Valida formato brasileiro (10 ou 11 dígitos)
+            if (numbers.length === 11) {
+                const ddd = numbers.substring(0, 2);
+                const validDDDs = ['11', '12', '13', '14', '15', '16', '17', '18', '19',
+                                  '21', '22', '24', '27', '28', '31', '32', '33', '34', '35',
+                                  '37', '38', '41', '42', '43', '44', '45', '46', '47', '48',
+                                  '49', '51', '53', '54', '55', '61', '62', '64', '63', '65',
+                                  '66', '67', '68', '69', '71', '73', '74', '75', '77', '79',
+                                  '81', '87', '82', '83', '84', '85', '88', '86', '89', '91',
+                                  '93', '94', '92', '97', '95', '96', '98', '99'];
+                
+                if (validDDDs.includes(ddd)) {
+                    return numbers;
+                }
+            } else if (numbers.length === 10) {
+                // Adiciona 9 no início do número (padrão mobile)
+                return numbers.substring(0, 2) + '9' + numbers.substring(2);
+            }
+            
+            return null;
+        }
+
+        async function consultarAPIExterna(telefone) {
+            // Simula delay da API
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            console.log('🔍 Consultando API externa para:', telefone);
+            
+            if (FATURAS_DB[telefone]) {
+                return {
+                    success: true,
+                    data: FATURAS_DB[telefone]
+                };
+            } else {
+                return {
+                    success: false,
+                    error: "Telefone não encontrado na base de dados"
+                };
+            }
+        }
+
+        function generateAIResponse(message, context = "geral") {
+            const msgLower = message.toLowerCase();
+            
+            const responses = {
+                saudacao: [
+                    "Olá! Como posso ajudar você hoje? 😊",
+                    "Oi! Bem-vindo ao atendimento automático. Posso consultar sua fatura pelo telefone.",
+                    "Olá! Estou aqui para ajudar com consultas de fatura."
+                ],
+                pedindo_telefone: [
+                    "Para consultar sua fatura, preciso do seu número de telefone. Pode me informar?",
+                    "Me informe seu número de telefone para buscar os dados da sua fatura.",
+                    "Qual é o número de telefone cadastrado na sua conta?"
+                ],
+                agradecimento: [
+                    "De nada! Fico feliz em ajudar. Precisa de mais alguma coisa? 😊",
+                    "Por nada! Estou sempre aqui para ajudar.",
+                    "Disponha! Posso ajudar com mais alguma consulta?"
+                ],
+                despedida: [
+                    "Até logo! Foi um prazer atendê-lo. Volte sempre! 👋",
+                    "Tchau! Obrigado por usar nossos serviços.",
+                    "Até mais! Tenha um ótimo dia! ✨"
+                ],
+                erro_telefone: [
+                    "Não consegui identificar um telefone válido. Tente no formato: (11) 99999-9999",
+                    "O número parece incorreto. Digite apenas os números com DDD.",
+                    "Por favor, verifique o número e digite novamente."
+                ]
+            };
+            
+            // Detecta intenção
+            if (['oi', 'olá', 'hello', 'bom dia', 'boa tarde', 'boa noite'].some(word => msgLower.includes(word))) {
+                return responses.saudacao[Math.floor(Math.random() * responses.saudacao.length)];
+            } else if (['obrigado', 'obrigada', 'valeu', 'thanks'].some(word => msgLower.includes(word))) {
+                return responses.agradecimento[Math.floor(Math.random() * responses.agradecimento.length)];
+            } else if (['tchau', 'bye', 'até logo', 'adeus'].some(word => msgLower.includes(word))) {
+                return responses.despedida[Math.floor(Math.random() * responses.despedida.length)];
+            } else if (['fatura', 'conta', 'boleto', 'consultar'].some(word => msgLower.includes(word))) {
+                return responses.pedindo_telefone[Math.floor(Math.random() * responses.pedindo_telefone.length)];
+            } else if (context === "erro_telefone") {
+                return responses.erro_telefone[Math.floor(Math.random() * responses.erro_telefone.length)];
+            } else {
+                return responses.pedindo_telefone[Math.floor(Math.random() * responses.pedindo_telefone.length)];
+            }
+        }
+
+        async function processMessage(message) {
+            const telefone = extractPhone(message);
+            
+            if (telefone) {
+                showTyping();
+                
+                try {
+                    const resultado = await consultarAPIExterna(telefone);
+                    
+                    hideTyping();
+                    
+                    if (resultado.success) {
+                        const dados = resultado.data;
+                        
+                        const statusEmoji = {
+                            "pago": "✅",
+                            "em_aberto": "❌", 
+                            "pendente": "⏳",
+                            "cancelado": "🚫"
+                        }[dados.status] || "ℹ️";
+                        
+                        const statusClass = `status-${dados.status}`;
+                        
+                        const response = `${statusEmoji} **CONSULTA REALIZADA COM SUCESSO!**
+
+<div class="invoice-card">
+    <h3>📋 Detalhes da Fatura</h3>
+    <div class="invoice-detail">
+        <span><strong>📱 Telefone:</strong></span>
+        <span>${dados.numero_telefone}</span>
+    </div>
+    <div class="invoice-detail">
+        <span><strong>📊 Status:</strong></span>
+        <span class="status-badge ${statusClass}">${dados.status.replace("_", " ")}</span>
+    </div>
+    <div class="invoice-detail" style="flex-direction: column; gap: 5px;">
+        <span><strong>📝 Descrição:</strong></span>
+        <span>${dados.descricao}</span>
+    </div>
+</div>
+
+✨ Posso ajudar com mais alguma coisa?`;
+                        
+                        conversationState.step = 'consulta_realizada';
+                        return response;
+                    } else {
+                        return `❌ ${resultado.error}\n\nTente novamente com um número válido ou escolha um dos números de teste acima.`;
+                    }
+                } catch (error) {
+                    hideTyping();
+                    return "❌ Erro interno do sistema. Tente novamente em alguns instantes.";
+                }
+            }
+            
+            // Se não encontrou telefone válido mas tem números
+            if (!telefone && /\d/.test(message)) {
+                return generateAIResponse(message, "erro_telefone");
+            }
+            
+            return generateAIResponse(message);
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Adiciona mensagem do usuário
+            addUserMessage(message);
+            messageInput.value = '';
+            sendButton.disabled = true;
+            
+            // Processa mensagem e responde
+            const response = await processMessage(message);
+            addBotMessage(response);
+        }
+
+        function addUserMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user';
+            messageDiv.innerHTML = `
+                <div class="message-content">${escapeHtml(message)}</div>
+                <div class="message-avatar">👤</div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function addBotMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            messageDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">${message}</div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function showTyping() {
+            typingIndicator.style.display = 'block';
+            scrollToBottom();
+        }
+
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Inicializa o botão como desabilitado
+        sendButton.disabled = true;
+    </script>
+</body>
+</html>
